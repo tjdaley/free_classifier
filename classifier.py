@@ -2,6 +2,9 @@
 """
 Simple multi-LLM, multimodal file classifier (CLI)
 
+Copyright (c) 2025 by Thomas J. Daley. All rights reserved.
+See accompanying LICENSE file in repository root for details.
+
 - Recursively walks a root directory, skipping folders that start with "."
 - Converts each file to up to 5 PNG "pages" (PDF pages, images, or text rendered to image)
 - Sends those images + a prompt (from file) to the chosen LLM
@@ -27,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import io
 import os
 from pathlib import Path
@@ -52,6 +56,7 @@ TEXT_CHARS_LIMIT = 8000  # keep it short to fit onto one or two images if needed
 
 class AppSettings(BaseSettings):
     llm_name: str = Field(..., alias="LLM_NAME")        # "openai" | "anthropic" | "gemini"
+    llm_model: str = Field("default-model", alias="LLM_MODEL")
     llm_api_key: str = Field(..., alias="LLM_API_KEY")
     prompt_file: Path = Field(..., alias="PROMPT_FILE")
 
@@ -186,7 +191,7 @@ def to_b64_images(png_bytes_list: List[bytes]) -> List[str]:
     return [base64.b64encode(b).decode("utf-8") for b in png_bytes_list[:MAX_PAGES]]
 
 
-def classify_with_openai(api_key: str, prompt: str, pngs: List[bytes]) -> str:
+def classify_with_openai(api_key: str, prompt: str, pngs: List[bytes], model: str = "gpt-4o-mini") -> str:
     """
     Minimal OpenAI image+text call using Chat Completions (gpt-4o-mini).
 
@@ -209,7 +214,7 @@ def classify_with_openai(api_key: str, prompt: str, pngs: List[bytes]) -> str:
         })
 
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": "You are a careful document classifier. Respond with a short, lowercase label like: bank_statement, credit_card_statement, email, text_message, social_media_message, or other."},
             {"role": "user", "content": content}
@@ -219,7 +224,7 @@ def classify_with_openai(api_key: str, prompt: str, pngs: List[bytes]) -> str:
     return (resp.choices[0].message.content or "").strip()
 
 
-def classify_with_anthropic(api_key: str, prompt: str, pngs: List[bytes]) -> str:
+def classify_with_anthropic(api_key: str, prompt: str, pngs: List[bytes], model: str = "claude-3-5-sonnet-latest") -> str:
     """
     Minimal Anthropic Claude 3.5 Sonnet image+text call.
 
@@ -245,7 +250,7 @@ def classify_with_anthropic(api_key: str, prompt: str, pngs: List[bytes]) -> str
         })
 
     resp = client.messages.create(
-        model="claude-3-5-sonnet-latest",
+        model=model,
         max_tokens=200,
         temperature=0,
         system="You classify documents. Output a short, lowercase label only.",
@@ -254,7 +259,7 @@ def classify_with_anthropic(api_key: str, prompt: str, pngs: List[bytes]) -> str
     return (resp.content[0].text if resp.content else "").strip()
 
 
-def classify_with_gemini(api_key: str, prompt: str, pngs: List[bytes]) -> str:
+def classify_with_gemini(api_key: str, prompt: str, pngs: List[bytes], model: str = "gemini-1.5-flash") -> str:
     """
     Minimal Google Gemini (1.5 Flash) image+text call.
 
@@ -267,7 +272,7 @@ def classify_with_gemini(api_key: str, prompt: str, pngs: List[bytes]) -> str:
     """
     import google.generativeai as genai
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel(model)
 
     # Build a list of parts: prompt text + image blobs
     parts = [prompt]
@@ -278,14 +283,14 @@ def classify_with_gemini(api_key: str, prompt: str, pngs: List[bytes]) -> str:
     return (getattr(resp, "text", "") or "").strip()
 
 
-def classify_images(llm_name: str, api_key: str, prompt: str, pngs: List[bytes]) -> str:
+def classify_images(llm_name: str, api_key: str, prompt: str, pngs: List[bytes], model: str) -> str:
     name = llm_name.strip().lower()
     if name == "openai":
-        return classify_with_openai(api_key, prompt, pngs)
+        return classify_with_openai(api_key, prompt, pngs, model)
     if name == "anthropic":
-        return classify_with_anthropic(api_key, prompt, pngs)
+        return classify_with_anthropic(api_key, prompt, pngs, model)
     if name == "gemini":
-        return classify_with_gemini(api_key, prompt, pngs)
+        return classify_with_gemini(api_key, prompt, pngs, model)
     raise ValueError(f"Unsupported LLM_NAME: {llm_name}")
 
 
@@ -320,6 +325,7 @@ def main():
 
     from tqdm import tqdm
     files = list(iter_files(root))
+    results = []
     for path in tqdm(files, desc="Classifying", unit="file"):
         imgs = file_to_images(path)
         if not imgs:
@@ -332,11 +338,22 @@ def main():
             continue
 
         try:
-            label = classify_images(settings.llm_name, settings.llm_api_key, prompt, imgs)
+            label = classify_images(settings.llm_name, settings.llm_api_key, prompt, imgs, settings.llm_model)
             # keep output very simple / greppable
-            print(f"{settings.llm_name} | {path} -> {label}")
+            results.append({'path': path, 'label': label, 'llm': settings.llm_name, 'model': settings.llm_model, 'filename': path.name})
         except Exception as e:
             print(f"[error] {path}: {e}")
+
+    # Write results to CSV
+    output_csv = root / "filelist.csv"
+    with open(output_csv, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['filename', 'label', 'llm', 'model', 'path']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in results:
+            writer.writerow(row)
+
+    print(f"\nResults written to: {output_csv}")
 
 
 if __name__ == "__main__":

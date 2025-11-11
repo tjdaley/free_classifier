@@ -1,0 +1,15 @@
+You are classifying a document. Consider layout cues (logos, tables, date ranges, transaction lists, message bubbles, email headers).
+
+Return one of:
+- bank_statement
+- credit_card_statement
+- brokerage_account_statement
+- retirement_statement
+- education_account_statement
+- email
+- text_message
+- social_media_message
+- tax_return
+- other
+
+Answer with just the label in lowercase. No punctuation. No explanation.

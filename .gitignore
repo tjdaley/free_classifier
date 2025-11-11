@@ -1,6 +1,9 @@
 # Config files
+*.env
 .env
-env
+
+# testing data
+/test_files/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
