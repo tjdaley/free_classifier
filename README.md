@@ -47,7 +47,7 @@ Managing large batches of PDF files can be daunting and creating lists of logs o
 1. Clone this repository:
 ```bash
 git clone https://github.com/tjdaley/free_classifier.git
-cd free+classifier
+cd free_classifier
 ```
 
 2. Create a virtual environment and activate the environment:
