@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Image/PDF helpers
 from PIL import Image, ImageDraw, ImageFont
@@ -60,9 +60,7 @@ class AppSettings(BaseSettings):
     llm_api_key: str = Field(..., alias="LLM_API_KEY")
     prompt_file: Path = Field(..., alias="PROMPT_FILE")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
 def is_hidden_dir(path: Path) -> bool:
