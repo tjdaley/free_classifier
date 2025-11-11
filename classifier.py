@@ -338,7 +338,7 @@ def main():
         try:
             label = classify_images(settings.llm_name, settings.llm_api_key, prompt, imgs, settings.llm_model)
             # keep output very simple / greppable
-            results.append({'path': path, 'label': label, 'llm': settings.llm_name, 'model': settings.llm_model, 'filename': path.name})
+            results.append({'path': path.resolve(), 'label': label, 'llm': settings.llm_name, 'model': settings.llm_model, 'filename': path.name})
         except Exception as e:
             print(f"[error] {path}: {e}")
 
