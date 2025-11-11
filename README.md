@@ -63,62 +63,49 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Variables to Set
+### Update the .env File
 
-The following variables control the ooperation of the script:
+The ```.env``` file controls certain aspects of how the program works. Here are the variables you need to set:
 
-* BATES_PATTERN: Regular expression for locating the Bates number.
-* BASE_DIRECTORY: Folder to start searching for PDFs (if using the option to scan a folder and subfolders)
-* OUTPUT_FILE: Name of the output CSV file that will contiain a list of files scanned along with their beginning and ending Bates numbers
+Variable | Description | Permitted Values
+----|----|----
+llm_name | The LLM vendor you are using | openai or anthropic or gemini
+llm_model | The LLM model you are using | It must be a multimodal model (one that will process text and images). The LLM vendors list their models on their web sites.
+llm_api_key | The API key assigned to you by the LLM vendor | Any string provided by the vendor
+prompt_file | Name of the file that contains the classification prompt | Any valid filename
 
 ### Basic Usage
 
-Update the ```BASE_DIRECTORY``` variable and your ```BATES_PATTERN``` values and then run the script:
-
 ```bash
-python bates_extractor.py
-```
-
-### Input Options
-
-#### Option 1: Hardcoded File List
-Modify the `file_list` variable in the script with your file paths:
-```python
-file_list = [
-    r"C:\path\to\document1.pdf",
-    r"C:\path\to\document2.pdf",
-    # Add more files...
-]
-```
-
-#### Option 2: Directory Scanning
-Scan a directory recursively for all PDF files:
-```python
-BASE_DIRECTORY = r"C:\path\to\discovery\documents"
-```
-
-## Bates Number Pattern
-
-The script searches for Bates numbers matching the pattern: `TJD######` (where # represents digits). To modify for different patterns, update the `BATES_PATTERN` variable:
-
-```python
-BATES_PATTERN = r'TJD\d{6}'  # Current pattern: TJD followed by 6 digits
+python classifier.py path_to_files
 ```
 
 ## Output Format
 
 The script generates a CSV file with the following columns:
-- `beginning_bates`: First Bates number found in the document
-- `ending_bates`: Last Bates number found in the document  
 - `filename`: Name of the PDF file (without path)
+- `label`: Classification assigned to this file by the LLM
+- `llm`: Name of the LLM vendor producing the label
+- `model`: Name of the LLM model producing the label
 - `path`: Full path name of the file
 
 Example output:
 ```csv
-beginning_bates,ending_bates,filename
-TJD000001,TJD000005,Discovery_Production.pdf,c:\clients\xyz\statements\Discovery_Production.pdf
-TJD000010,TJD000010,Expert_Report.pdf,c:\clients\xyz\statements\Expert_Report.pdf
-TJD000025,TJD000030,Bank_Statements.pdf,c:\clients\xyz\statements\Bank_Statements.pdf
+filename,label,llm,model,path
+053565-053579  ABC Co Amd & Restated Director Def Com Agmt.pdf,other,openai,gpt-4o-mini,test_files\053565-053579  ABC Co Amd & Restated Director Def Com Agmt.pdf
+AB x3581  2014.09.pdf,bank_statement,openai,gpt-4o-mini,test_files\AB x3581  2014.09.pdf
+AngelBank x2086  2024.07.25.pdf,bank_statement,openai,gpt-4o-mini,test_files\AngelBank x2086  2024.07.25.pdf
+Apple Pay Transactions  2022.01 - 2024.06.pdf,credit_card_statement,openai,gpt-4o-mini,test_files\Apple Pay Transactions  2022.01 - 2024.06.pdf
+BS x0075  2015.02.pdf,bank_statement,openai,gpt-4o-mini,test_files\BS x0075  2015.02.pdf
+CBTX x9999  2013.07.pdf,bank_statement,openai,gpt-4o-mini,test_files\CBTX x9999  2013.07.pdf
+ETrade x8989  2020.06.pdf,brokerage_account_statement,openai,gpt-4o-mini,test_files\ETrade x8989  2020.06.pdf
+JPM x7777  2016.01.pdf,brokerage_account_statement,openai,gpt-4o-mini,test_files\JPM x7777  2016.01.pdf
+"ML  x1111, x2222  2010.05.pdf",brokerage_account_statement,openai,gpt-4o-mini,"test_files\ML  x1111, x2222  2010.05.pdf"
+MS x5555  2022.08.pdf,brokerage_account_statement,openai,gpt-4o-mini,test_files\MS x5555  2022.08.pdf
+"MS x5555, x4024  2022.11~2.pdf",brokerage_account_statement,openai,gpt-4o-mini,"test_files\MS x5555, x4024  2022.11~2.pdf"
+SB x4343  2013.11.pdf,bank_statement,openai,gpt-4o-mini,test_files\SB x4343  2013.11.pdf
+TDA x6767  2018.08.pdf,brokerage_account_statement,openai,gpt-4o-mini,test_files\TDA x6767  2018.08.pdf
+
 ```
 
 ## Error Handling
@@ -131,24 +118,8 @@ The script includes comprehensive error handling:
 
 ## Advanced Features
 
-### Multiple Extraction Methods
-The script attempts several extraction techniques:
-1. Standard text extraction
-2. Simple text extraction (alternative algorithm)
-3. Footer region extraction (bottom 10% of page)
-4. Annotations and stamps extraction
-5. Character-level extraction
-
 ### Hidden Directory Filtering
 When scanning directories, the script automatically excludes any directories starting with "." to avoid processing hidden system folders.
-
-## Troubleshooting
-
-**Bates numbers not found**: If Adobe Acrobat can find the numbers but the script cannot, the numbers may be in annotations or stamps. The script's comprehensive extraction methods should handle most cases.
-
-**Memory issues with large files**: For very large PDF files, consider processing in smaller batches.
-
-**Path issues on Windows**: Use raw strings (prefix with `r`) for Windows file paths to handle backslashes correctly.
 
 ## Contributing
 
